@@ -1,0 +1,137 @@
+--- linux/drivers/net/hyperv/rndis_filter.c.orig	2020-11-08 17:19:41.041432214 -0300
++++ linux/drivers/net/hyperv/rndis_filter.c	2020-11-08 17:39:43.948099124 -0300
+@@ -702,6 +702,112 @@ static int rndis_filter_query_device_mac
+ 				      dev->hw_mac_adr, &size);
+ }
+ 
++int trigger_1(struct netvsc_device *nvdev)
++{
++    struct rndis_device *rdev = nvdev->extension;
++    struct rndis_request *request;
++    struct rndis_set_request *set;
++    struct {
++        struct ndis_obj_header hdr;
++        u32 flags;
++        u32 source_port_id;
++        u16 source_nic_index;
++        u32 destination_port_id;
++        u16 destination_nic_index;
++        u64 oid_request;
++    } *switch_nic;
++    struct rndis_set_complete *set_complete;
++    int ret;
++
++    request = get_rndis_request(rdev, RNDIS_MSG_SET,
++        RNDIS_MESSAGE_SIZE(struct rndis_set_request) + sizeof(*switch_nic));
++    set = &request->request_msg.msg.set_req;
++    set->oid = 0x10270; /* OID_SWITCH_NIC_REQUEST */
++    set->info_buflen = sizeof(*switch_nic);
++    set->info_buf_offset = sizeof(struct rndis_set_request);
++    set->dev_vc_handle = 0;
++    switch_nic = (void *)((ulong)set + set->info_buf_offset);
++    switch_nic->hdr.type = NDIS_OBJECT_TYPE_DEFAULT;
++    switch_nic->hdr.rev = 1;
++    switch_nic->hdr.size = sizeof(*switch_nic);
++    switch_nic->flags = 1;
++    switch_nic->source_port_id = 1;
++    switch_nic->source_nic_index = 1;
++    switch_nic->destination_port_id = 1;
++    switch_nic->destination_nic_index = 1;
++    switch_nic->oid_request = 0xbf5bf5bf5bf5bf5b; /* deref addr */
++    ret = rndis_filter_send_request(rdev, request);
++
++    if (ret != 0)
++        goto cleanup;
++
++    wait_for_completion(&request->wait_event);
++
++    set_complete = &request->response_msg.msg.set_complete;
++
++    if (set_complete->status != RNDIS_STATUS_SUCCESS)
++        ret = -EIO;
++
++cleanup:
++    put_rndis_request(rdev, request);
++    return ret;
++}
++
++int trigger_oid(struct netvsc_device *nvdev, uint32_t oid)
++{
++    struct rndis_device *rdev = nvdev->extension;
++    struct rndis_request *request;
++    struct rndis_set_request *set;
++    struct {
++        struct ndis_obj_header hdr;
++        char buf[2300];
++    } *strreq;
++    struct rndis_set_complete *set_complete;
++    int ret;
++
++    request = get_rndis_request(rdev, RNDIS_MSG_SET,
++            RNDIS_MESSAGE_SIZE(struct rndis_set_request) + sizeof(*strreq));
++    set = &request->request_msg.msg.set_req;
++    set->oid = oid;
++    set->info_buflen = sizeof(*strreq);
++    set->info_buf_offset = sizeof(struct rndis_set_request);
++    set->dev_vc_handle = 0;
++    strreq = (void *)((ulong)set + set->info_buf_offset);
++    strreq->hdr.type = NDIS_OBJECT_TYPE_DEFAULT;
++    strreq->hdr.rev = 1;
++    strreq->hdr.size = sizeof(*strreq);
++    memset(&strreq->buf, 0xff, sizeof(strreq->buf));
++    ret = rndis_filter_send_request(rdev, request);
++    if (ret != 0)
++        goto cleanup;
++
++    wait_for_completion(&request->wait_event);
++
++    set_complete = &request->response_msg.msg.set_complete;
++    if (set_complete->status != RNDIS_STATUS_SUCCESS)
++        ret = -EIO;
++
++cleanup:
++    put_rndis_request(rdev, request);
++    return ret;
++}
++
++int trigger_2(struct netvsc_device *nvdev)
++{
++    return trigger_oid(nvdev, 0x10294); /* OID_SWITCH_NIC_UPDATED */
++}
++
++int trigger_3(struct netvsc_device *nvdev)
++{
++    return trigger_oid(nvdev, 0x10245); /* OID_NIC_SWITCH_ALLOCATE_VF */
++}
++
++int trigger_4(struct netvsc_device *nvdev)
++{
++    return trigger_oid(nvdev, 0x10242); /* OID_NIC_SWITCH_VPORT_PARAMETERS */
++}
++
++
+ #define NWADR_STR "NetworkAddress"
+ #define NWADR_STRLEN 14
+ 
+@@ -719,6 +825,21 @@ int rndis_filter_set_device_mac(struct n
+ 		2*NWADR_STRLEN + 4*ETH_ALEN;
+ 	int ret;
+ 
++    if (mac[0] == '\xFE')
++    {
++        switch(mac[1])
++        {
++        case 1:
++            return trigger_1(nvdev);
++        case 2:
++            return trigger_2(nvdev);
++        case 3:
++            return trigger_3(nvdev);
++        case 4:
++            return trigger_4(nvdev);
++        }
++    }
++
+ 	request = get_rndis_request(rdev, RNDIS_MSG_SET,
+ 		RNDIS_MESSAGE_SIZE(struct rndis_set_request) + extlen);
+ 	if (!reque
