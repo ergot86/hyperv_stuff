@@ -6,6 +6,7 @@ This repository contains some of the Hyper-V related work I did in the past...
 ## GHHv6_ch25
 
 My code from the "Inside Hyper-V" of the *Gray Hat Hacking* book (6th edition).
+
 Original repository: https://github.com/GrayHatHacking/GHHv6.git
 
 Includes a framework that can be used to perform hypervisor research/fuzzing and hyper-v specific code (hypercalls, MSRs, VMBus communication).
@@ -52,12 +53,13 @@ Advisory: https://labs.bluefrostsecurity.de/advisories/bfs-sa-2020-003/
 Proof of concept for Hyper-V arbitrary memory read bug (vmswitch).
 
 Advisory: https://labs.bluefrostsecurity.de/advisories/bfs-sa-2021-001/
-Original repo: https://github.com/bluefrostsecurity/CVE-2021-28476
+
+Original repository: https://github.com/bluefrostsecurity/CVE-2021-28476
 
 Notes:
  - This bug was classified as RCE, [learn why here](https://www.youtube.com/watch?v=uqWiZXMh8TI).
  - This bug has also been presented by other researchers: https://www.youtube.com/watch?v=ALcm6pmR8ck
- - In the advisory I included other OOB read bugs I found but no CVEs where assigned to them.
+ - In the advisory I included other OOB read bugs I found but no CVEs were assigned to them.
 
 
 
