@@ -56,7 +56,7 @@ function removeBreakpoint() {
     let context_area_bp = ctx.code_buffer.subtract(8);
 
     if (bp != null) {
-        host.namespace.Debugger.State.RemoveBreakpoint(bp);
+        bp.Remove();
     }
 
     ctx.breakpoint = null;
